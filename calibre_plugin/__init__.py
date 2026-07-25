@@ -10,7 +10,7 @@ class AudnexusBulkUpdaterPlugin(InterfaceActionBase):
     description = 'Update every Calibre-managed MP3/M4B audiobook for Plex Audnexus.'
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Caffeinnovate'
-    version = (1, 0, 2)
+    version = (1, 0, 3)
     minimum_calibre_version = (7, 0, 0)
     actual_plugin = 'calibre_plugins.audnexus_tag_writer.ui:AudnexusBulkUpdateAction'
 

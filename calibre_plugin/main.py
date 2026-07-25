@@ -36,6 +36,28 @@ def build_jobs(db, book_ids):
     return jobs, skipped
 
 
+def build_jobs_in_background(db, book_ids, abort, log, notifications):
+    """Discover files and read preview values without blocking Calibre's UI."""
+    jobs, skipped = [], []
+    total = len(book_ids)
+    for index, book_id in enumerate(book_ids, start=1):
+        if abort.is_set():
+            log('Audiobook tag update preparation cancelled by user')
+            return jobs, skipped, True
+        notifications.put(((index - 1) / total, 'Preparing audiobook {}/{}'.format(index, total)))
+        paths = audio_paths(db, book_id)
+        if not paths:
+            skipped.append((book_id, 'No Calibre-managed MP3 or M4B format'))
+            continue
+        mi = db.get_metadata(book_id, get_cover=False)
+        cover = db.cover(book_id, as_file=False)
+        values = book_tags(mi, cover)
+        for path in paths:
+            jobs.append((book_id, path, values, read_existing_tags(path)))
+        notifications.put((index / total, 'Prepared audiobook {} of {}'.format(index, total)))
+    return jobs, skipped, False
+
+
 def write_jobs(jobs, clear_missing):
     updated, failures = [], []
     for book_id, path, values, _old_values in jobs:

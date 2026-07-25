@@ -3,7 +3,7 @@ from calibre.gui2.actions import InterfaceAction
 from calibre.gui2.threaded_jobs import ThreadedJob
 from qt.core import QCheckBox, QDialog, QDialogButtonBox, QIcon, QLabel, QPixmap, QTreeWidget, QTreeWidgetItem, QVBoxLayout
 
-from calibre_plugins.audnexus_tag_writer.main import build_jobs, write_jobs_in_background
+from calibre_plugins.audnexus_tag_writer.main import build_jobs_in_background, write_jobs_in_background
 from calibre_plugins.audnexus_tag_writer.metadata import FIELD_LABELS
 
 
@@ -66,13 +66,39 @@ class AudnexusBulkUpdateAction(InterfaceAction):
         if not ids:
             info_dialog(self.gui, _('No books found'), _('The current Calibre library contains no books.'), show=True)
             return
-        jobs, skipped = build_jobs(db, ids)
+        self.qaction.setEnabled(False)
+        job = ThreadedJob(
+            'audnexus-tag-writer-preview',
+            _('Preparing audiobook tag preview'),
+            build_jobs_in_background,
+            args=(db, ids),
+            kwargs={},
+            callback=Dispatcher(self.preview_ready),
+            max_concurrent_count=1,
+        )
+        self.gui.job_manager.run_threaded_job(job)
+
+    def preview_ready(self, job):
+        self.qaction.setEnabled(True)
+        if job.failed:
+            error_dialog(
+                self.gui,
+                _('Could not prepare audiobook tag preview'),
+                _('The background preparation job stopped unexpectedly. Open Calibre\'s Jobs list for details.'),
+                det_msg=job.details,
+                show=True,
+            )
+            return
+        jobs, skipped, cancelled = job.result
+        if cancelled:
+            return
         if not jobs:
             info_dialog(self.gui, _('No audiobook files found'), _('None of the selected books has a managed MP3 or M4B format.'), show=True)
             return
         preview = PreviewDialog(self.gui, jobs, skipped)
         if preview.exec() != QDialog.DialogCode.Accepted:
             return
+        self.qaction.setEnabled(False)
         job = ThreadedJob(
             'audnexus-tag-writer',
             _('Updating audiobook metadata'),
@@ -86,6 +112,7 @@ class AudnexusBulkUpdateAction(InterfaceAction):
         self.gui.job_manager.run_threaded_job(job)
 
     def job_finished(self, job):
+        self.qaction.setEnabled(True)
         if job.failed:
             error_dialog(
                 self.gui,
