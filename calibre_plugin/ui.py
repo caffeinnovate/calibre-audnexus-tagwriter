@@ -1,6 +1,6 @@
 from calibre.gui2 import info_dialog
 from calibre.gui2.actions import InterfaceAction
-from qt.core import QCheckBox, QDialog, QDialogButtonBox, QLabel, QTableWidget, QTableWidgetItem, QVBoxLayout
+from qt.core import QCheckBox, QDialog, QDialogButtonBox, QIcon, QLabel, QPixmap, QTableWidget, QTableWidgetItem, QVBoxLayout
 
 from calibre_plugins.audnexus_tag_writer.main import build_jobs, write_jobs
 from calibre_plugins.audnexus_tag_writer.metadata import FIELD_LABELS
@@ -39,6 +39,10 @@ class AudnexusBulkUpdateAction(InterfaceAction):
     action_spec = (_('Update all audiobooks'), None, _('Write Audnexus metadata to every managed MP3/M4B audiobook'), None)
 
     def genesis(self):
+        resource_name = 'images/audnexus-tag-writer.png'
+        pixmap = QPixmap()
+        pixmap.loadFromData(self.load_resources([resource_name])[resource_name])
+        self.qaction.setIcon(QIcon(pixmap))
         self.qaction.triggered.connect(self.run)
 
     def run(self):
