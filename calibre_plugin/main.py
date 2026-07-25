@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from calibre_plugins.audnexus_tag_writer.audio import write_audio
+from calibre_plugins.audnexus_tag_writer.audio import read_existing_tags, write_audio
 from calibre_plugins.audnexus_tag_writer.metadata import book_tags
 
 
@@ -32,13 +32,13 @@ def build_jobs(db, book_ids):
         cover = db.cover(book_id, as_file=False)
         values = book_tags(mi, cover)
         for path in paths:
-            jobs.append((book_id, path, values))
+            jobs.append((book_id, path, values, read_existing_tags(path)))
     return jobs, skipped
 
 
 def write_jobs(jobs, clear_missing):
     updated, failures = [], []
-    for book_id, path, values in jobs:
+    for book_id, path, values, _old_values in jobs:
         try:
             write_audio(path, values, clear_missing)
         except Exception as err:
@@ -52,7 +52,7 @@ def write_jobs_in_background(jobs, clear_missing, abort, log, notifications):
     """Write audiobook tags in a Calibre threaded job and report live progress."""
     updated, failures = [], []
     total = len(jobs)
-    for index, (book_id, path, values) in enumerate(jobs, start=1):
+    for index, (book_id, path, values, _old_values) in enumerate(jobs, start=1):
         if abort.is_set():
             log('Audiobook tag update cancelled by user')
             return updated, failures, True

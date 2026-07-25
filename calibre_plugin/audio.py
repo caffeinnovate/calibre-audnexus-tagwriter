@@ -19,6 +19,37 @@ MP4_KEYS = {
 }
 
 
+def _text_value(value):
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else None
+    if isinstance(value, bytes):
+        return value.decode('utf-8', 'replace')
+    return str(value) if value not in (None, '') else None
+
+
+def read_existing_tags(path):
+    """Return existing values for the tags this plugin manages, for preview only."""
+    extension = str(path).rsplit('.', 1)[-1].lower()
+    try:
+        if extension == 'mp3':
+            tags = ID3(path)
+            values = {field: _text_value(getattr(tags.get(frame.__name__), 'text', None)) for field, frame in ID3_FRAMES.items()}
+            values['comment'] = _text_value(getattr(tags.getall('COMM')[0], 'text', None)) if tags.getall('COMM') else None
+            values['asin'] = _text_value(getattr(tags.get('TXXX:ASIN'), 'text', None))
+            popm = tags.get('POPM:calibre@local')
+            values['rating'] = str(round(popm.rating / 25.5, 1)) if popm else None
+            values['cover'] = bool(tags.getall('APIC'))
+            return values
+        if extension == 'm4b':
+            tags = MP4(path).tags or {}
+            values = {field: _text_value(tags.get(atom)) for field, atom in MP4_KEYS.items()}
+            values['cover'] = bool(tags.get('covr'))
+            return values
+    except Exception:
+        pass
+    return {}
+
+
 def _set_or_clear(mapping, key, value, clear_missing, set_value, remove_value):
     if value is not None:
         set_value(mapping[key], value)

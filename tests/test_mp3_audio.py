@@ -24,6 +24,10 @@ def test_mp3_writer_round_trips_and_honors_clear_mode(tmp_path):
     assert tags.get('TXXX:ASIN').text == ['B012345678']
     assert tags.get('APIC:Cover').data == values['cover']
     assert tags.get('TPUB').text == ['Publisher']
+    old_values = AUDIO.read_existing_tags(str(path))
+    assert old_values['title'] == 'Book'
+    assert old_values['asin'] == 'B012345678'
+    assert old_values['cover'] is True
 
     AUDIO.write_mp3(str(path), {'title': 'New title'}, clear_missing=False)
     assert ID3(path).get('TPUB').text == ['Publisher']

@@ -17,16 +17,22 @@ class PreviewDialog(QDialog):
         self.clear_missing = QCheckBox(_('Clear existing tags when the matching Calibre field is empty'))
         layout.addWidget(self.clear_missing)
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(3)
-        self.tree.setHeaderLabels([_('File'), _('Tag'), _('New value')])
-        self.tree.setColumnWidth(0, 390)
-        self.tree.setColumnWidth(1, 145)
+        self.tree.setColumnCount(4)
+        self.tree.setHeaderLabels([_('File'), _('Tag'), _('Old value'), _('New value')])
+        self.tree.setColumnWidth(0, 330)
+        self.tree.setColumnWidth(1, 130)
+        self.tree.setColumnWidth(2, 180)
         layout.addWidget(self.tree)
-        for _book_id, path, values in jobs:
-            file_item = QTreeWidgetItem([path, '', ''])
+        for _book_id, path, values, old_values in jobs:
+            file_item = QTreeWidgetItem([path, '', '', ''])
             self.tree.addTopLevelItem(file_item)
             for key, value in values.items():
-                QTreeWidgetItem(file_item, ['', FIELD_LABELS[key], _('Embedded image') if key == 'cover' else str(value)])
+                QTreeWidgetItem(file_item, [
+                    '',
+                    FIELD_LABELS[key],
+                    self.display_value(key, old_values.get(key)),
+                    self.display_value(key, value),
+                ])
         self.tree.expandAll()
         if skipped:
             layout.addWidget(QLabel(_('{0} book(s) have no managed MP3/M4B format and will be skipped.').format(len(skipped))))
@@ -35,6 +41,12 @@ class PreviewDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    @staticmethod
+    def display_value(key, value):
+        if key == 'cover':
+            return _('Embedded image') if value else _('Not set')
+        return str(value) if value not in (None, '') else _('Not set')
 
 
 class AudnexusBulkUpdateAction(InterfaceAction):
