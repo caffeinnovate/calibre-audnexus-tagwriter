@@ -12,7 +12,7 @@ SUPPORTED_FORMATS = frozenset(('MP3', 'M4B'))
 
 
 def audio_paths(db, book_id):
-    formats = set((db.formats(book_id, verify_formats=False) or '').upper().split(','))
+    formats = {fmt.upper() for fmt in (db.formats(book_id, verify_formats=False) or ())}
     paths = []
     for fmt in sorted(formats & SUPPORTED_FORMATS):
         path = db.format_abspath(book_id, fmt)
@@ -46,3 +46,23 @@ def write_jobs(jobs, clear_missing):
         else:
             updated.append((book_id, path))
     return updated, failures
+
+
+def write_jobs_in_background(jobs, clear_missing, abort, log, notifications):
+    """Write audiobook tags in a Calibre threaded job and report live progress."""
+    updated, failures = [], []
+    total = len(jobs)
+    for index, (book_id, path, values) in enumerate(jobs, start=1):
+        if abort.is_set():
+            log('Audiobook tag update cancelled by user')
+            return updated, failures, True
+        notifications.put(((index - 1) / total, 'Updating {} ({}/{})'.format(os.path.basename(path), index, total)))
+        try:
+            write_audio(path, values, clear_missing)
+        except Exception as err:
+            log.exception('Unable to update {}: {}'.format(path, err))
+            failures.append((book_id, path, str(err)))
+        else:
+            updated.append((book_id, path))
+        notifications.put((index / total, 'Updated {} of {} files'.format(index, total)))
+    return updated, failures, False

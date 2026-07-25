@@ -8,7 +8,7 @@ class AudnexusMetadataWriter(MetadataWriterPlugin):
     description = 'Write Calibre metadata to MP3 and M4B files for Plex Audnexus.'
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Caffeinnovate'
-    version = (1, 0, 0)
+    version = (1, 0, 1)
     minimum_calibre_version = (7, 0, 0)
     file_types = {'mp3', 'm4b'}
 
