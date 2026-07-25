@@ -1,0 +1,4 @@
+# Runtime dependency is vendored into the release ZIP by build_plugin.py.
+# This file is for local development and testing only.
+pytest>=8
+mutagen>=1.47,<2
