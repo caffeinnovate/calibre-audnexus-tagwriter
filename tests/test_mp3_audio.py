@@ -33,3 +33,18 @@ def test_mp3_writer_round_trips_and_honors_clear_mode(tmp_path):
     assert ID3(path).get('TPUB').text == ['Publisher']
     AUDIO.write_mp3(str(path), {'title': 'New title'}, clear_missing=True)
     assert ID3(path).get('TPUB') is None
+
+
+def test_audio_update_detection_skips_matching_tags_and_cover(tmp_path):
+    path = tmp_path / 'book.mp3'
+    path.touch()
+    values = {
+        'title': 'A title longer than thirty-one characters',
+        'rating': 8,
+        'cover': b'\xff\xd8\xff\xe0cover',
+    }
+    AUDIO.write_mp3(str(path), values)
+
+    assert AUDIO.audio_needs_update(str(path), values) is False
+    assert AUDIO.audio_needs_update(str(path), {**values, 'title': 'Changed title'}) is True
+    assert AUDIO.audio_needs_update(str(path), {**values, 'cover': b'\x89PNG\r\n\x1a\ncover'}) is True

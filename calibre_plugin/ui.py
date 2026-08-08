@@ -122,8 +122,12 @@ class AudnexusBulkUpdateAction(InterfaceAction):
                 show=True,
             )
             return
-        updated, failures, cancelled = job.result
-        lines = [_('Updated: {0} file(s)').format(len(updated)), _('Skipped: {0} book(s)').format(len(job.skipped_books))]
+        updated, unchanged, failures, cancelled = job.result
+        lines = [
+            _('Updated: {0} file(s)').format(len(updated)),
+            _('Unchanged: {0} file(s)').format(len(unchanged)),
+            _('Skipped: {0} book(s)').format(len(job.skipped_books)),
+        ]
         if cancelled:
             lines.insert(0, _('Update cancelled after {0} file(s)').format(len(updated)))
         if failures:

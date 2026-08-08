@@ -17,6 +17,7 @@ MP4_KEYS = {
     'date': '\xa9day', 'comment': '\xa9cmt', 'genre': '\xa9gen',
     'asin': '----:com.apple.iTunes:ASIN', 'rating': '----:com.apple.iTunes:RATING',
 }
+MANAGED_FIELDS = tuple(MP4_KEYS) + ('cover',)
 
 
 def _text_value(value):
@@ -48,6 +49,48 @@ def read_existing_tags(path):
     except Exception:
         pass
     return {}
+
+
+def _same_value(field, current, wanted):
+    if field == 'rating':
+        try:
+            return float(current) == float(wanted)
+        except (TypeError, ValueError):
+            return False
+    return str(current) == str(wanted)
+
+
+def _cover_matches(path, extension, wanted, clear_missing):
+    try:
+        if extension == 'mp3':
+            tags = ID3(path)
+            current = next((cover.data for cover in tags.getall('APIC') if cover.type == 3), None)
+        else:
+            tags = MP4(path).tags or {}
+            covers = tags.get('covr') or ()
+            current = bytes(covers[0]) if covers else None
+    except Exception:
+        current = None
+    if wanted is not None:
+        return current == wanted
+    return not clear_missing or current is None
+
+
+def audio_needs_update(path, values, clear_missing=False, file_type=None):
+    """Return whether writing would change a managed tag or front cover."""
+    extension = (file_type or str(path).rsplit('.', 1)[-1]).lower().lstrip('.')
+    existing = read_existing_tags(path)
+    for field in MANAGED_FIELDS:
+        wanted = values.get(field)
+        if field == 'cover':
+            if not _cover_matches(path, extension, wanted, clear_missing):
+                return True
+        elif wanted is not None:
+            if not _same_value(field, existing.get(field), wanted):
+                return True
+        elif clear_missing and existing.get(field) is not None:
+            return True
+    return False
 
 
 def _set_or_clear(mapping, key, value, clear_missing, set_value, remove_value):
@@ -90,7 +133,7 @@ def write_mp3(path, values, clear_missing=False):
         tags.delall('TXXX:ASIN')
     if values.get('rating') is not None:
         tags.delall('POPM:calibre@local')
-        tags.add(POPM(email='calibre@local', rating=max(0, min(255, int(float(values['rating']) * 51))), count=0))
+        tags.add(POPM(email='calibre@local', rating=max(0, min(255, int(float(values['rating']) * 25.5))), count=0))
     elif clear_missing:
         tags.delall('POPM:calibre@local')
     if values.get('cover') is not None:

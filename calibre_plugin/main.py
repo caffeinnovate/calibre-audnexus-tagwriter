@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from calibre_plugins.audnexus_tag_writer.audio import read_existing_tags, write_audio
+from calibre_plugins.audnexus_tag_writer.audio import audio_needs_update, read_existing_tags, write_audio
 from calibre_plugins.audnexus_tag_writer.metadata import book_tags
 
 
@@ -59,27 +59,35 @@ def build_jobs_in_background(db, book_ids, abort, log, notifications):
 
 
 def write_jobs(jobs, clear_missing):
-    updated, failures = [], []
+    updated, unchanged, failures = [], [], []
     for book_id, path, values, _old_values in jobs:
         try:
+            if not audio_needs_update(path, values, clear_missing):
+                unchanged.append((book_id, path))
+                continue
             write_audio(path, values, clear_missing)
         except Exception as err:
             failures.append((book_id, path, str(err)))
         else:
             updated.append((book_id, path))
-    return updated, failures
+    return updated, unchanged, failures
 
 
 def write_jobs_in_background(jobs, clear_missing, abort, log, notifications):
     """Write audiobook tags in a Calibre threaded job and report live progress."""
-    updated, failures = [], []
+    updated, unchanged, failures = [], [], []
     total = len(jobs)
     for index, (book_id, path, values, _old_values) in enumerate(jobs, start=1):
         if abort.is_set():
             log('Audiobook tag update cancelled by user')
-            return updated, failures, True
+            return updated, unchanged, failures, True
         notifications.put(((index - 1) / total, 'Updating {} ({}/{})'.format(os.path.basename(path), index, total)))
         try:
+            if not audio_needs_update(path, values, clear_missing):
+                unchanged.append((book_id, path))
+                log('Skipped unchanged metadata: {}'.format(path))
+                notifications.put((index / total, 'Skipped unchanged audiobook {} of {}'.format(index, total)))
+                continue
             write_audio(path, values, clear_missing)
         except Exception as err:
             log.exception('Unable to update {}: {}'.format(path, err))
@@ -87,4 +95,4 @@ def write_jobs_in_background(jobs, clear_missing, abort, log, notifications):
         else:
             updated.append((book_id, path))
         notifications.put((index / total, 'Updated {} of {} files'.format(index, total)))
-    return updated, failures, False
+    return updated, unchanged, failures, False
